@@ -2,6 +2,7 @@
 // ゲームグラフィックス特論宿題アプリケーション
 //
 #include "GgApp.h"
+#include <cmath>
 
 // プロジェクト名
 #ifndef PROJECT_NAME
@@ -93,8 +94,26 @@ static void frustum(GLfloat* m, float left, float right, float bottom, float top
 //
 static void perspective(GLfloat* m, float fovy, float aspect, float zNear, float zFar)
 {
-  // 【宿題】ここを解答してください（loadIdentity() を置き換えてください）
-  loadIdentity(m);
+  const float theta = fovy * 0.5f * M_PI / 180.0f; // 視野角をラジアンに変換する
+  const float a = aspect;
+  const float dz = zFar - zNear;
+  const float cot = 1.0f / tan(theta);
+  m[0] = cot / a;
+  m[1] = 0.0f;
+  m[2] = 0.0f;
+  m[3] = 0.0f;
+  m[4] = 0.0f;
+  m[5] = cot;
+  m[6] = 0.0f;
+  m[7] = 0.0f;
+  m[8] = 0.0f;
+  m[9] = 0.0f;
+  m[10] = -(zFar + zNear) / dz;
+  m[11] = -(2.0f * zFar * zNear) / dz;
+  m[12] = 0.0f;
+  m[13] = 0.0f;
+  m[14] = -1.0f;
+  m[15] = 0.0f;
 }
 
 //
@@ -107,9 +126,71 @@ static void perspective(GLfloat* m, float fovy, float aspect, float zNear, float
 //
 static void lookat(GLfloat* m, float ex, float ey, float ez, float tx, float ty, float tz, float ux, float uy, float uz)
 {
-  // 【宿題】ここを解答してください（loadIdentity() を置き換えてください）
-  loadIdentity(m);
+  // 視点の位置を計算
+  float fx = tx - ex;
+  float fy = ty - ey;
+  float fz = tz - ez;
+
+  // forwardベクトルを正規化
+  float norm = sqrt(fx * fx + fy * fy + fz * fz);
+  fx /= norm;
+  fy /= norm;
+  fz /= norm;
+
+  // upベクトルを正規化
+  norm = sqrt(ux * ux + uy * uy + uz * uz);
+  ux /= norm;
+  uy /= norm;
+  uz /= norm;
+
+  // sベクトルを計算
+  float sx = fy * uz - fz * uy;
+  float sy = fz * ux - fx * uz;
+  float sz = fx * uy - fy * ux;
+
+  // sベクトルを正規化
+  norm = sqrt(sx * sx + sy * sy + sz * sz);
+  sx /= norm;
+  sy /= norm;
+  sz /= norm;
+
+  // uベクトルを計算
+  ux = sy * fz - sz * fy;
+  uy = sz * fx - sx * fz;
+  uz = sx * fy - sy * fx;
+
+  // カメラの姿勢行列を作成
+  m[0] = sx;
+  m[1] = ux;
+  m[2] = -fx;
+  m[3] = 0.0f;
+
+  m[4] = sy;
+  m[5] = uy;
+  m[6] = -fy;
+  m[7] = 0.0f;
+
+  m[8] = sz;
+  m[9] = uz;
+  m[10] = -fz;
+  m[11] = 0.0f;
+
+  m[12] = -(sx * ex + sy * ey + sz * ez);
+  m[13] = -(ux * ex + uy * ey + uz * ez);
+  m[14] = fx * ex + fy * ey + fz * ez;
+  m[15] = 1.0f;
 }
+
+//透視投影変換行列とビュー変換行列の積を求める用
+//static void multMatrix(GLfloat* result, const GLfloat* a, const GLfloat* b) {
+//  for(int i = 0; i < 4; ++i) {
+//    const int ai0 = i, ai1 = i + 4, ai2 = i + 8, ai3 = i + 12;
+//    result[ai0] = a[ai0] * b[0] + a[ai1] * b[4] + a[ai2] * b[8] + a[ai3] * b[12];
+//    result[ai1] = a[ai0] * b[1] + a[ai1] * b[5] + a[ai2] * b[9] + a[ai3] * b[13];
+//    result[ai2] = a[ai0] * b[2] + a[ai1] * b[6] + a[ai2] * b[10] + a[ai3] * b[14];
+//    result[ai3] = a[ai0] * b[3] + a[ai1] * b[7] + a[ai2] * b[11] + a[ai3] * b[15];
+//  }
+//}
 
 //
 // アプリケーション本体
@@ -189,7 +270,7 @@ int GgApp::main(int argc, const char* const* argv)
     multiply(mc, mp, mv);
 
     // uniform 変数 mc に変換行列 mc を設定する
-    // 【宿題】ここを解答してください（uniform 変数 mc のインデックスは変数 mcLoc に入っています）
+    glUniformMatrix4fv(mcLoc, 1, GL_FALSE, mc);
 
     // 描画に使う頂点配列オブジェクトの指定
     glBindVertexArray(vao);
